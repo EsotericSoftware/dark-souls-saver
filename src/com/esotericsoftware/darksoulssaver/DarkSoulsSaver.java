@@ -73,15 +73,15 @@ public class DarkSoulsSaver {
 					return;
 				}
 				if (name.equals("save")) {
-					System.out.println("Save: " + new Date());
-					backup(saveFile, saveDir, saveFiles, "save", 100);
+					File file = backup(saveFile, saveDir, saveFiles, "save", 100);
+					if (file != null) System.out.println("Save: " + file.getName() + " " + new Date());
 					audio.play(Sound.save);
 
 				} else if (name.equals("replaceWithLastSave")) {
-					System.out.println("Replace with last save: " + new Date());
 					if (saveFiles.isEmpty())
 						audio.play(Sound.error);
 					else {
+						System.out.println("Replace with last save: " + saveFile.getName() + " " + new Date());
 						copy(last(saveFiles), saveFile);
 						audio.play(Sound.replaceSave);
 					}
@@ -95,7 +95,8 @@ public class DarkSoulsSaver {
 						File last = null;
 						String type = null;
 						if (!backupFiles.isEmpty()) {
-							last = last(backupFiles);
+							// Use first backup older than 10 seconds ago.
+							last = last(backupFiles, System.currentTimeMillis() - 1000 * 10);
 							type = "backup";
 						}
 						if (!saveFiles.isEmpty()) {
@@ -106,7 +107,7 @@ public class DarkSoulsSaver {
 							}
 						}
 
-						System.out.println("Replace with last " + type + " and restart: " + new Date());
+						System.out.println("Replace with last " + type + " and restart: " + last.getName() + " " + new Date());
 						copy(last, saveFile);
 						if (type.equals("save"))
 							audio.play(Sound.replaceSave);
@@ -150,8 +151,8 @@ public class DarkSoulsSaver {
 						}
 
 						// Backup the file.
-						System.out.println("Backup: " + new Date());
-						backup(saveFile, backupDir, backupFiles, "backup", 100);
+						File file = backup(saveFile, backupDir, backupFiles, "backup", 100);
+						if (file != null) System.out.println("Backup: " + file.getName() + " " + new Date());
 					}
 					zzz(500);
 				}
@@ -186,15 +187,27 @@ public class DarkSoulsSaver {
 		return files.get(files.size() - 1);
 	}
 
+	/** @param olderThan Return the newest file older than this, otherwise return the oldest file.
+	 * @return May be null if files is empty. */
+	File last (ArrayList<File> files, long olderThan) {
+		File file = null;
+		for (int i = 0, n = files.size(); i < n; i++) {
+			file = files.get(i);
+			if (file.lastModified() < olderThan) return file;
+		}
+		return file;
+	}
+
 	int highestSuffix (ArrayList<File> files, String prefix) {
 		if (files.isEmpty()) return 1;
 		return suffix(last(files), prefix);
 	}
 
-	void backup (File from, File toDir, ArrayList<File> files, String prefix, int max) {
+	/** @return May be null. */
+	File backup (File from, File toDir, ArrayList<File> files, String prefix, int max) {
 		if (!from.exists()) {
 			System.out.println("File does not exist: " + from.getAbsolutePath());
-			return;
+			return null;
 		}
 		int suffix = highestSuffix(files, prefix);
 		while (true) {
@@ -205,7 +218,7 @@ public class DarkSoulsSaver {
 					while (files.size() > max)
 						files.remove(0).delete();
 				}
-				return;
+				return to;
 			}
 		}
 	}
