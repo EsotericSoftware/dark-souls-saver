@@ -13,9 +13,16 @@ The game updates its save file when you kill an enemy, pick up an item, close th
 
 # Should you use this app?
 
-Dark Souls has many difficult bosses and areas that require trekking a long distance while fighting many enemies just to get back to the place where you die extremely easily. That makes learning how to fight a boss or pass an area very time consuming and frustrating. Also, while relatively rare, some areas of Dark Souls are just plain unfair and ensure you die the first time, for example when a dragon burns you to death without any kind of warning.
+Ultimately it's up to you. Many players use a guide/walkthrough, forums/reddit, or look up spoilers or other information. All of that is cheating the experience intended by the game designers in some way, as is using this app. Definitely try the game without this app first (and without a guide or spoilers).
 
-The game designers intended the game to be frustrating and for dying to be very painful. They did not intend to have the game save file backed up. However, you are playing for your own enjoyment and entertainment. If you dislike how the game was intended to be played or don't have the time to slog through the same areas of the game repeatedly, you are free to spend your entertainment time playing it however you wish. Many people would not play Dark Souls at all without this app or one like it, and that would be unfortunate.
+Here are a few reasons to use this app:
+
+1) Dark Souls has many difficult bosses and areas that require trekking a long distance while fighting many enemies, just to get back to the place where you die extremely easily. That makes learning how to fight a boss or pass an area very time consuming and frustrating.
+2) While relatively rare, some areas of Dark Souls are just plain unfair and ensure you die before you know the gimmick, for example when a dragon burns you to death without any kind of warning.
+3) Unfortunate events can occur that majorly wreck your enjoyment of the game, such as accidentally attacking an NPC because it looks exactly the same as enemies in the area, or because you simply pressed the wrong button or dropped the controller.
+4) Some poorly worded dialog ends in a yes/no choice, without having asked a yes/no question. Answering incorrectly may block off your a path you wanted to take.
+
+The game designers intended the game to be frustrating, for dying to be very painful, and for events to be permanent. They did not intend to have the game save file backed up. However, you are playing for your own enjoyment and entertainment. If you dislike how the game was intended to be played and/or don't have enough free time to slog through the same areas of the game repeatedly, you are free to spend your entertainment time playing it however you wish. Many people would not play Dark Souls at all without this app or one like it, and that would be unfortunate.
 
 # Running the app
 
