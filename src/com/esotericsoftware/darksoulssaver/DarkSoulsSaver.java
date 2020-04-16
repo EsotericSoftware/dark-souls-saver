@@ -191,7 +191,7 @@ public class DarkSoulsSaver {
 	 * @return May be null if files is empty. */
 	File last (ArrayList<File> files, long olderThan) {
 		File file = null;
-		for (int i = 0, n = files.size(); i < n; i++) {
+		for (int i = files.size() - 1; i >= 0; i--) {
 			file = files.get(i);
 			if (file.lastModified() < olderThan) return file;
 		}
