@@ -24,9 +24,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Date;
 
 import javax.swing.KeyStroke;
 
@@ -49,6 +50,7 @@ import java.awt.event.KeyEvent;
  * @author Nathan Sweet */
 public class DarkSoulsSaver {
 	final ArrayList<File> saveFiles, backupFiles;
+	final DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy kk:mm:ss");
 
 	public DarkSoulsSaver (final File saveFile, final File steamExe) {
 		final File saveDir = new File("save");
@@ -60,7 +62,7 @@ public class DarkSoulsSaver {
 		Audio audio = new Audio();
 
 		if (!saveFile.exists()) {
-			System.out.println("Save file not found: " + saveFile.getAbsolutePath());
+			print("Save file not found: " + saveFile.getAbsolutePath());
 			audio.play(Sound.error);
 			System.exit(-1);
 		}
@@ -68,20 +70,20 @@ public class DarkSoulsSaver {
 		Keyboard keyboard = new Keyboard() {
 			protected void hotkey (String name, KeyStroke keyStroke) {
 				if (!saveFile.exists()) {
-					System.out.println("Save file not found: " + saveFile.getAbsolutePath());
+					print("Save file not found: " + saveFile.getAbsolutePath());
 					audio.play(Sound.error);
 					return;
 				}
 				if (name.equals("save")) {
 					File file = backup(saveFile, saveDir, saveFiles, "save", 100);
-					if (file != null) System.out.println("Save: " + file.getName() + " " + new Date());
+					if (file != null) print("Save: " + file.getName());
 					audio.play(Sound.save);
 
 				} else if (name.equals("replaceWithLastSave")) {
 					if (saveFiles.isEmpty())
 						audio.play(Sound.error);
 					else {
-						System.out.println("Replace with last save: " + saveFile.getName() + " " + new Date());
+						print("Replace with last save: " + fileNameAndDate(saveFile));
 						copy(last(saveFiles), saveFile);
 						audio.play(Sound.replaceSave);
 					}
@@ -89,7 +91,7 @@ public class DarkSoulsSaver {
 				} else if (name.equals("replaceWithLastBackupAndRestart")) {
 					if (backupFiles.isEmpty() && saveFiles.isEmpty()) {
 						audio.play(Sound.error);
-						System.out.println("No backup or save files.");
+						print("No backup or save files.");
 					} else {
 						// Use newer of last backup file and save file.
 						File last = null;
@@ -107,7 +109,7 @@ public class DarkSoulsSaver {
 							}
 						}
 
-						System.out.println("Replace with last " + type + " and restart: " + last.getName() + " " + new Date());
+						print("Replace with last " + type + " and restart: " + fileNameAndDate(last));
 						copy(last, saveFile);
 						if (type.equals("save"))
 							audio.play(Sound.replaceSave);
@@ -119,7 +121,7 @@ public class DarkSoulsSaver {
 						zzz(1000);
 						Runtime.getRuntime().exec(steamExe.getAbsolutePath() + " -applaunch 570940");
 					} catch (IOException ex) {
-						System.out.println("Unable to restart:");
+						print("Unable to restart:");
 						ex.printStackTrace();
 					}
 				}
@@ -152,7 +154,7 @@ public class DarkSoulsSaver {
 
 						// Backup the file.
 						File file = backup(saveFile, backupDir, backupFiles, "backup", 100);
-						if (file != null) System.out.println("Backup: " + file.getName() + " " + new Date());
+						if (file != null) print("Backup: " + file.getName());
 					}
 					zzz(500);
 				}
@@ -206,7 +208,7 @@ public class DarkSoulsSaver {
 	/** @return May be null. */
 	File backup (File from, File toDir, ArrayList<File> files, String prefix, int max) {
 		if (!from.exists()) {
-			System.out.println("File does not exist: " + from.getAbsolutePath());
+			print("File does not exist: " + from.getAbsolutePath());
 			return null;
 		}
 		int suffix = highestSuffix(files, prefix);
@@ -225,16 +227,16 @@ public class DarkSoulsSaver {
 
 	boolean copy (File from, File to) {
 		if (!from.exists()) {
-			System.out.println("File does not exist: " + from.getAbsolutePath());
+			print("File does not exist: " + from.getAbsolutePath());
 			return false;
 		}
 		try {
 			Files.copy(from.toPath(), to.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			return true;
 		} catch (IOException ex) {
-			System.out.println("Error copying file!");
-			System.out.println("From: " + from.getAbsolutePath());
-			System.out.println("To: " + to.getAbsolutePath());
+			print("Error copying file!");
+			print("From: " + from.getAbsolutePath());
+			print("To: " + to.getAbsolutePath());
 			ex.printStackTrace(System.out);
 			return false;
 		}
@@ -245,6 +247,24 @@ public class DarkSoulsSaver {
 			Thread.sleep(millis);
 		} catch (InterruptedException ignored) {
 		}
+	}
+
+	String timestamp (long time) {
+		synchronized (dateFormat) {
+			return dateFormat.format(time);
+		}
+	}
+
+	void print (String message) {
+		StringBuilder buffer = new StringBuilder(128);
+		buffer.append(timestamp(System.currentTimeMillis()));
+		buffer.append(' ');
+		buffer.append(message);
+		System.out.println(buffer);
+	}
+
+	String fileNameAndDate (File file) {
+		return file.getName() + " (" + timestamp(file.lastModified()) + ')';
 	}
 
 	static public void main (String[] args) throws Exception {
