@@ -21,7 +21,7 @@ Here are a few reasons to use this app:
 2) Some enemies, such as skeleton dogs or a number of bosses, have an attack chosen at random that will almost certainly kill you without having a chance to avoid it. Other times an enemy will use their most powerful attack many times in a row, resulting in an unfair death.
 3) Some areas of Dark Souls are just plain unfair and ensure you die before you know the gimmick, for example when a dragon burns you to death without any kind of warning.
 4) Unfortunate events can occur that majorly wreck your enjoyment of the game, such as accidentally attacking an NPC because it looks exactly the same as enemies in the area, or because you simply pressed the wrong button or dropped the controller.
-5) Some poorly worded dialog, such as that of Alvina the cat, ends in a yes/no choice without having asked a yes/no question. Answering incorrectly may block off your a path you wanted to take.
+5) Some poorly worded dialog, such as that of Alvina the cat, ends in a yes/no choice without having asked a yes/no question. Answering incorrectly may block off a path you wanted to take.
 
 The game designers intended the game to be frustrating, for dying to be unfair with a high penalty, and for events to be permanent. However, you are playing for your own enjoyment and entertainment. If you dislike how the game was intended to be played and/or don't have enough free time to slog through the same areas of the game repeatedly, you are free to spend your entertainment time playing it however you wish. Many people would not play Dark Souls at all without this app or one like it, and that would be even more unfortunate than experiencing the game differently from how it was designed.
 
