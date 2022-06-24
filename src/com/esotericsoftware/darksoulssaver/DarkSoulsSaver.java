@@ -28,6 +28,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Scanner;
 
 import javax.swing.KeyStroke;
 
@@ -52,12 +53,35 @@ public class DarkSoulsSaver {
 	final ArrayList<File> saveFiles, backupFiles;
 	final DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy kk:mm:ss");
 
-	public DarkSoulsSaver (final File saveFile, final File steamExe) {
+	String killCommand, runCommand;
+	int waitMillis;
+
+	public DarkSoulsSaver (final File saveFile, final File steamExe) throws Exception {
 		final File saveDir = new File("save");
 		saveFiles = files(saveDir, "save");
 
 		final File backupDir = new File("backup");
 		backupFiles = files(backupDir, "backup");
+
+		killCommand = "taskkill /IM DarkSoulsRemastered.exe";
+		waitMillis = 1000;
+		runCommand = steamExe.getAbsolutePath() + " -applaunch 570940";
+
+		File configFile = new File("config.txt");
+		if (configFile.exists()) {
+			Scanner scanner = new Scanner(configFile);
+			for (int i = 0; scanner.hasNextLine(); i++) {
+				String line = scanner.nextLine();
+				if (i == 0)
+					killCommand = line;
+				else if (i == 0)
+					waitMillis = Integer.parseInt(line);
+				else if (i == 0)
+					runCommand = line;
+				else
+					break;
+			}
+		}
 
 		Audio audio = new Audio();
 
@@ -117,10 +141,10 @@ public class DarkSoulsSaver {
 							audio.play(Sound.replaceBackup);
 					}
 					try {
-						Runtime.getRuntime().exec("taskkill /IM DarkSoulsRemastered.exe");
-						zzz(1000);
-						Runtime.getRuntime().exec(steamExe.getAbsolutePath() + " -applaunch 570940");
-					} catch (IOException ex) {
+						Runtime.getRuntime().exec(killCommand).waitFor();
+						zzz(waitMillis);
+						Runtime.getRuntime().exec(runCommand).waitFor();
+					} catch (Throwable ex) {
 						print("Unable to restart:");
 						ex.printStackTrace();
 					}
