@@ -140,8 +140,16 @@ public class DarkSoulsSaver {
 						else
 							audio.play(Sound.replaceBackup);
 					}
+					outer:
 					try {
-						Runtime.getRuntime().exec(killCommand).waitFor();
+						for (int i = 1;; i++) {
+							if (Runtime.getRuntime().exec(killCommand).waitFor() != 0) break;
+							if (i == 6) {
+								print("Unable to terminate process.");
+								break outer;
+							}
+							zzz(100);
+						}
 						zzz(waitMillis);
 						Runtime.getRuntime().exec(runCommand).waitFor();
 					} catch (Throwable ex) {
