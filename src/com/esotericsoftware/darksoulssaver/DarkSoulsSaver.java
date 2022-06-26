@@ -50,11 +50,13 @@ import java.awt.event.KeyEvent;
  * standing. This is useful for example right outside a boss fog wall!<br>
  * @author Nathan Sweet */
 public class DarkSoulsSaver {
+	static final DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy kk:mm:ss");
+
 	final ArrayList<File> saveFiles, backupFiles;
-	final DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy kk:mm:ss");
 
 	String killCommand, runCommand;
 	int waitMillis;
+	long lastBackupTime;
 
 	public DarkSoulsSaver (final File saveFile, final File steamExe) throws Exception {
 		final File saveDir = new File("save");
@@ -121,7 +123,7 @@ public class DarkSoulsSaver {
 						File last = null;
 						String type = null;
 						if (!backupFiles.isEmpty()) {
-							// Use first backup older than 10 seconds ago.
+							// First backup or save older than 10 seconds ago.
 							last = last(backupFiles, System.currentTimeMillis() - 1000 * 10);
 							type = "backup";
 						}
@@ -135,33 +137,48 @@ public class DarkSoulsSaver {
 
 						print("Replace with last " + type + " and restart: " + fileNameAndDate(last));
 						copy(last, saveFile);
+						lastBackupTime = last.lastModified();
 						if (type.equals("save"))
 							audio.play(Sound.replaceSave);
 						else
 							audio.play(Sound.replaceBackup);
 					}
-					outer:
-					try {
-						for (int i = 1;; i++) {
-							if (Runtime.getRuntime().exec(killCommand).waitFor() != 0) break;
-							if (i == 6) {
-								print("Unable to terminate process.");
-								break outer;
-							}
-							zzz(100);
-						}
-						zzz(waitMillis);
-						Runtime.getRuntime().exec(runCommand).waitFor();
-					} catch (Throwable ex) {
-						print("Unable to restart:");
-						ex.printStackTrace();
+					stopGame();
+					zzz(waitMillis);
+					startGame();
+
+				} else if (name.equals("replaceWithPreviousBackupAndRestart")) {
+					if (lastBackupTime == 0) {
+						audio.play(Sound.error);
+						print("No previous backup has been restored.");
+					} else if (backupFiles.isEmpty()) {
+						audio.play(Sound.error);
+						print("No backup files.");
+					} else {
+						// Use newer of last backup file and save file.
+						File last = last(backupFiles, lastBackupTime);
+						print("Replace with previous backup and restart: " + fileNameAndDate(last));
+						copy(last, saveFile);
+						lastBackupTime = last.lastModified();
+						audio.play(Sound.replaceBackup);
 					}
+					stopGame();
+					zzz(waitMillis);
+					startGame();
+
+				} else if (name.equals("restart")) {
+					print("Restart game.");
+					stopGame();
+					zzz(waitMillis);
+					startGame();
 				}
 			}
 		};
-		keyboard.registerHotkey("save", KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0));
 		keyboard.registerHotkey("replaceWithLastSave", KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
+		keyboard.registerHotkey("restart", KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0));
 		keyboard.registerHotkey("replaceWithLastBackupAndRestart", KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
+		keyboard.registerHotkey("replaceWithPreviousBackupAndRestart", KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0));
+		keyboard.registerHotkey("save", KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0));
 		keyboard.start();
 
 		new Thread("Backup") {
@@ -192,6 +209,31 @@ public class DarkSoulsSaver {
 				}
 			}
 		}.start();
+	}
+
+	void stopGame () {
+		try {
+			for (int i = 1;; i++) {
+				if (Runtime.getRuntime().exec(killCommand).waitFor() != 0) break;
+				if (i == 6) {
+					print("Unable to terminate process.");
+					return;
+				}
+				zzz(100);
+			}
+		} catch (Throwable ex) {
+			print("Unable to stop:");
+			ex.printStackTrace();
+		}
+	}
+
+	void startGame () {
+		try {
+			Runtime.getRuntime().exec(runCommand);
+		} catch (Throwable ex) {
+			print("Unable to start:");
+			ex.printStackTrace();
+		}
 	}
 
 	ArrayList<File> files (File dir, String prefix) {
@@ -281,13 +323,13 @@ public class DarkSoulsSaver {
 		}
 	}
 
-	String timestamp (long time) {
+	static String timestamp (long time) {
 		synchronized (dateFormat) {
 			return dateFormat.format(time);
 		}
 	}
 
-	void print (String message) {
+	static void print (String message) {
 		StringBuilder buffer = new StringBuilder(128);
 		buffer.append(timestamp(System.currentTimeMillis()));
 		buffer.append(' ');
@@ -300,7 +342,13 @@ public class DarkSoulsSaver {
 	}
 
 	static public void main (String[] args) throws Exception {
-		if (args.length != 2) throw new RuntimeException("Usage: save-file steam-exe");
+		if (args.length != 2) {
+			System.out.println("Usage: save-file steam-exe");
+			System.out.println("Example:");
+			System.out.println("java -jar dark-souls-saver.jar"
+				+ " \"C:\\Users\\USERNAME\\Documents\\NBGI\\DARK SOULS REMASTERED\\SOME_NUMBER\\DRAKS0005.sl2\""
+				+ " \"C:\\Games\\Steam\\Steam.exe\"");
+		}
 		new DarkSoulsSaver(new File(args[0]), new File(args[1]));
 	}
 }

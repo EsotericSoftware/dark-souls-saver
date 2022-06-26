@@ -108,7 +108,6 @@ public class Keyboard {
 					} else {
 						System.out.println("Unable to register hotkey: " + names.get(i) + ", " + keyStroke + " "
 							+ Integer.toString(getVK(keyStroke), 16));
-						System.exit(-1);
 					}
 				}
 
