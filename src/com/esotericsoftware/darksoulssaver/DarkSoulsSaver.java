@@ -425,7 +425,7 @@ public class DarkSoulsSaver {
 			System.out.println("C:\\Users\\USERNAME\\AppData\\Roaming\\DarkSoulsII\\NUMBER\\DS2SOFS0000.sl2");
 			System.out.println("C:\\Program Files\\Steam\\steam.exe -applaunch 335300");
 			System.out.println("DarkSoulsII.exe");
-		}
-		new DarkSoulsSaver(new File(args[0]));
+		} else
+			new DarkSoulsSaver(new File(args[0]));
 	}
 }
