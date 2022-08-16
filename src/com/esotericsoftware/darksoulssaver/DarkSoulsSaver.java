@@ -20,8 +20,11 @@
 
 package com.esotericsoftware.darksoulssaver;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.text.DateFormat;
@@ -47,179 +50,237 @@ import java.awt.event.KeyEvent;
  * <p>
  * The game updates its save file when you kill an enemy, pick up an item, close the game menu, and at many other times. To force
  * it to update the save file, just open and close the game menu. Then you can press F8 and you've saved where you are currently
- * standing. This is useful for example right outside a boss fog wall!<br>
+ * standing. This is useful for example right outside a boss fog wall!
+ * <p>
+ * May need to run as Administrator for some games (eg Dark Souls 2).<br>
  * @author Nathan Sweet */
 public class DarkSoulsSaver {
 	static final DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy kk:mm:ss");
 
+	File saveDir = new File("save"), backupDir = new File("backup");
 	final ArrayList<File> saveFiles, backupFiles;
+	long lastModified, lastBackupTime, skipBackupTime;
+	Audio audio;
 
-	String killCommand, runCommand;
-	int waitMillis;
-	long lastBackupTime;
+	File saveFile;
+	String runCommand, exeName;
+	int backupDelay;
 
-	public DarkSoulsSaver (final File saveFile, final File steamExe) throws Exception {
-		final File saveDir = new File("save");
+	public DarkSoulsSaver (File configFile) throws Exception {
+		loadConfig(configFile);
+
 		saveFiles = files(saveDir, "save");
-
-		final File backupDir = new File("backup");
 		backupFiles = files(backupDir, "backup");
-
-		killCommand = "taskkill /IM DarkSoulsRemastered.exe";
-		waitMillis = 1000;
-		runCommand = steamExe.getAbsolutePath() + " -applaunch 570940";
-
-		File configFile = new File("config.txt");
-		if (configFile.exists()) {
-			Scanner scanner = new Scanner(configFile);
-			for (int i = 0; scanner.hasNextLine(); i++) {
-				String line = scanner.nextLine();
-				if (i == 0)
-					killCommand = line;
-				else if (i == 0)
-					waitMillis = Integer.parseInt(line);
-				else if (i == 0)
-					runCommand = line;
-				else
-					break;
-			}
-		}
-
-		Audio audio = new Audio();
-
-		if (!saveFile.exists()) {
-			print("Save file not found: " + saveFile.getAbsolutePath());
-			audio.play(Sound.error);
-			System.exit(-1);
-		}
+		audio = new Audio();
 
 		Keyboard keyboard = new Keyboard() {
-			protected void hotkey (String name, KeyStroke keyStroke) {
-				if (!saveFile.exists()) {
-					print("Save file not found: " + saveFile.getAbsolutePath());
-					audio.play(Sound.error);
-					return;
-				}
-				if (name.equals("save")) {
-					File file = backup(saveFile, saveDir, saveFiles, "save", 100);
-					if (file != null) print("Save: " + file.getName());
-					audio.play(Sound.save);
-
-				} else if (name.equals("replaceWithLastSave")) {
-					if (saveFiles.isEmpty())
-						audio.play(Sound.error);
-					else {
-						print("Replace with last save: " + fileNameAndDate(saveFile));
-						copy(last(saveFiles), saveFile);
-						audio.play(Sound.replaceSave);
-					}
-
-				} else if (name.equals("replaceWithLastBackupAndRestart")) {
-					if (backupFiles.isEmpty() && saveFiles.isEmpty()) {
-						audio.play(Sound.error);
-						print("No backup or save files.");
-					} else {
-						// Use newer of last backup file and save file.
-						File last = null;
-						String type = null;
-						if (!backupFiles.isEmpty()) {
-							// First backup or save older than 10 seconds ago.
-							last = last(backupFiles, System.currentTimeMillis() - 1000 * 10);
-							type = "backup";
-						}
-						if (!saveFiles.isEmpty()) {
-							File lastSave = last(saveFiles);
-							if (last == null || last.lastModified() < lastSave.lastModified()) {
-								last = lastSave;
-								type = "save";
-							}
-						}
-
-						print("Replace with last " + type + " and restart: " + fileNameAndDate(last));
-						copy(last, saveFile);
-						lastBackupTime = last.lastModified();
-						if (type.equals("save"))
-							audio.play(Sound.replaceSave);
-						else
-							audio.play(Sound.replaceBackup);
-					}
-					stopGame();
-					zzz(waitMillis);
-					startGame();
-
-				} else if (name.equals("replaceWithPreviousBackupAndRestart")) {
-					if (lastBackupTime == 0) {
-						audio.play(Sound.error);
-						print("No previous backup has been restored.");
-					} else if (backupFiles.isEmpty()) {
-						audio.play(Sound.error);
-						print("No backup files.");
-					} else {
-						// Use newer of last backup file and save file.
-						File last = last(backupFiles, lastBackupTime);
-						print("Replace with previous backup and restart: " + fileNameAndDate(last));
-						copy(last, saveFile);
-						lastBackupTime = last.lastModified();
-						audio.play(Sound.replaceBackup);
-					}
-					stopGame();
-					zzz(waitMillis);
-					startGame();
-
-				} else if (name.equals("restart")) {
-					print("Restart game.");
-					stopGame();
-					zzz(waitMillis);
-					startGame();
-				}
+			protected void hotkey (String key, KeyStroke keyStroke) {
+				keyPressed(key);
 			}
 		};
 		keyboard.registerHotkey("replaceWithLastSave", KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
+		keyboard.registerHotkey("replaceWithPreviousBackup", KeyStroke.getKeyStroke(KeyEvent.VK_F2, 0));
 		keyboard.registerHotkey("restart", KeyStroke.getKeyStroke(KeyEvent.VK_F3, 0));
-		keyboard.registerHotkey("replaceWithLastBackupAndRestart", KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
-		keyboard.registerHotkey("replaceWithPreviousBackupAndRestart", KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0));
+		keyboard.registerHotkey("stop", KeyStroke.getKeyStroke(KeyEvent.VK_F4, 0));
+		keyboard.registerHotkey("replaceWithLatestAndRestart", KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
 		keyboard.registerHotkey("save", KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0));
 		keyboard.start();
 
 		new Thread("Backup") {
 			public void run () {
-				long lastModified = saveFile.lastModified();
+				lastModified = saveFile.lastModified();
 				while (true) {
-					// Check every 5 seconds if the file was modified.
-					long newLastModified = saveFile.lastModified();
-					if (newLastModified != lastModified) {
-						lastModified = newLastModified;
-
-						// Wait a bit after the file size stops changing.
-						long length = saveFile.length();
-						for (int i = 0; i < 20; i++) {
-							zzz(500);
-							long newLength = saveFile.length();
-							if (length != newLength) {
-								i = 0;
-								length = newLength;
-							}
-						}
-
-						// Backup the file.
-						File file = backup(saveFile, backupDir, backupFiles, "backup", 100);
-						if (file != null) print("Backup: " + file.getName());
-					}
-					zzz(500);
+					backup();
+					zzz(3000);
 				}
 			}
 		}.start();
 	}
 
+	void loadConfig (File configFile) throws FileNotFoundException {
+		runCommand = "C:\\Program Files\\Steam\\steam.exe -applaunch 570940";
+		exeName = "DarkSoulsRemastered.exe";
+		backupDelay = 10;
+
+		System.out.println("Config: " + configFile.getAbsolutePath());
+		if (!configFile.exists()) {
+			System.out.println("Config file not found.");
+			return;
+		}
+		Scanner scanner = new Scanner(configFile);
+		for (int i = 0; scanner.hasNextLine(); i++) {
+			String line = scanner.nextLine();
+			if (i == 0)
+				saveFile = new File(line);
+			else if (i == 1)
+				runCommand = line;
+			else if (i == 2)
+				exeName = line;
+			else if (i == 3)
+				backupDelay = Integer.parseInt(line);
+			else
+				break;
+		}
+
+		System.out.println("Save file: " + saveFile.getAbsolutePath());
+		System.out.println("Run command: " + runCommand);
+		System.out.println("Executable: " + exeName);
+		System.out.println("Backup delay: " + backupDelay + " s");
+
+		if (!saveFile.exists()) {
+			print("Save file not found: " + saveFile.getAbsolutePath());
+			audio.play(Sound.stop);
+			System.exit(-1);
+		}
+	}
+
+	synchronized void backup () {
+		if (System.currentTimeMillis() < skipBackupTime) return;
+
+		long newLastModified = saveFile.lastModified();
+		if (newLastModified != lastModified) {
+			lastModified = newLastModified;
+
+			// Wait a bit after the file size stops changing.
+			long length = saveFile.length();
+			for (int i = 0; i < 10; i++) {
+				zzz(100);
+				long newLength = saveFile.length();
+				if (length != newLength) {
+					i = 0;
+					length = newLength;
+				}
+			}
+
+			// Backup the file.
+			File file = backup(saveFile, backupDir, backupFiles, "backup", 100);
+			if (file != null) print("Backup: " + file.getName());
+		}
+	}
+
+	synchronized void keyPressed (String key) {
+		if (!saveFile.exists()) {
+			print("Save file not found: " + saveFile.getAbsolutePath());
+			audio.play(Sound.stop);
+			System.exit(-1);
+		}
+
+		if (key.equals("replaceWithLastSave")) {
+			if (saveFiles.isEmpty()) {
+				print("No save files.");
+				audio.play(Sound.stop);
+				return;
+			}
+
+			File last = last(saveFiles);
+			print("Replace with last save: " + fileNameAndDate(last));
+			audio.play(Sound.replace);
+			copy(last, saveFile);
+			skipBackup(20);
+
+		} else if (key.equals("replaceWithPreviousBackup")) {
+			if (backupFiles.isEmpty()) {
+				print("No backup files.");
+				audio.play(Sound.stop);
+				return;
+			}
+
+			// Last backup older than the current save file.
+			File last;
+			if (lastBackupTime == 0)
+				lastBackupTime = backupFiles.get(backupFiles.size() == 1 ? 0 : backupFiles.size() - 2).lastModified();
+			last = last(backupFiles, lastBackupTime);
+			print("Replace with previous backup: " + fileNameAndDate(last));
+			audio.play(Sound.replace);
+			copy(last, saveFile);
+			lastBackupTime = last.lastModified();
+			skipBackup(20);
+
+		} else if (key.equals("restart")) {
+			print("Restart game.");
+			stopGame();
+			startGame();
+			skipBackup(15);
+
+		} else if (key.equals("stop")) {
+			print("Stop game.");
+			stopGame();
+			skipBackup(15);
+
+		} else if (key.equals("replaceWithLatestAndRestart")) {
+			if (backupFiles.isEmpty() && saveFiles.isEmpty()) {
+				print("No backup or save files.");
+				audio.play(Sound.stop);
+				return;
+			}
+
+			// Use newer of last backup file and save file.
+			File last = null;
+			String type = null;
+			if (!backupFiles.isEmpty()) {
+				// Last backup older than X seconds ago.
+				last = last(backupFiles, System.currentTimeMillis() - backupDelay * 1000);
+				type = "backup";
+			}
+			if (!saveFiles.isEmpty()) {
+				File lastSave = last(saveFiles);
+				if (last == null || last.lastModified() < lastSave.lastModified()) {
+					last = lastSave;
+					type = "save";
+				}
+			}
+
+			print("Replace with last " + type + " and restart: " + fileNameAndDate(last));
+			lastBackupTime = last.lastModified();
+			stopGame();
+			audio.play(Sound.replace);
+			copy(last, saveFile);
+			startGame();
+			skipBackup(20);
+
+		} else if (key.equals("save")) {
+			File file = backup(saveFile, saveDir, saveFiles, "save", 100);
+			if (file != null) {
+				print("Save: " + file.getName());
+				audio.play(Sound.save);
+				skipBackup(10);
+			} else {
+				print("Unable to save.");
+				audio.play(Sound.stop);
+			}
+		}
+	}
+
+	boolean isRunning () throws IOException {
+		ProcessBuilder builder = new ProcessBuilder();
+		builder.command("tasklist", "/NH", "/FI", "IMAGENAME eq " + exeName);
+		builder.redirectErrorStream(true);
+
+		Process process = builder.start();
+		BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+		while (true) {
+			String line = reader.readLine();
+			if (line == null) break;
+			if (line.startsWith(exeName)) return true;
+		}
+		return false;
+	}
+
 	void stopGame () {
 		try {
+			if (!isRunning()) return;
+			audio.play(Sound.stop);
+			String killCommand = "taskkill /IM " + exeName;
+			Runtime.getRuntime().exec(killCommand).waitFor();
+			zzz(500);
 			for (int i = 1;; i++) {
+				if (!isRunning()) return;
 				if (Runtime.getRuntime().exec(killCommand).waitFor() != 0) break;
-				if (i == 6) {
+				if (i == 18) {
 					print("Unable to terminate process.");
 					return;
 				}
-				zzz(100);
+				zzz(250);
 			}
 		} catch (Throwable ex) {
 			print("Unable to stop:");
@@ -228,12 +289,17 @@ public class DarkSoulsSaver {
 	}
 
 	void startGame () {
+		audio.play(Sound.start);
 		try {
 			Runtime.getRuntime().exec(runCommand);
 		} catch (Throwable ex) {
 			print("Unable to start:");
 			ex.printStackTrace();
 		}
+	}
+
+	void skipBackup (int seconds) {
+		skipBackupTime = System.currentTimeMillis() + seconds * 1000;
 	}
 
 	ArrayList<File> files (File dir, String prefix) {
@@ -252,8 +318,9 @@ public class DarkSoulsSaver {
 	}
 
 	int suffix (File file, String prefix) {
+		String name = file.getName();
 		try {
-			return Integer.parseInt(file.getName().substring(prefix.length()));
+			return Integer.parseInt(name.substring(prefix.length(), name.length() - 4));
 		} catch (NumberFormatException ex) {
 			return 0;
 		}
@@ -287,7 +354,7 @@ public class DarkSoulsSaver {
 		}
 		int suffix = highestSuffix(files, prefix);
 		while (true) {
-			File to = new File(toDir, prefix + suffix++);
+			File to = new File(toDir, prefix + suffix++ + ".sl2");
 			if (!to.exists()) {
 				if (copy(from, to)) {
 					files.add(to);
@@ -342,13 +409,23 @@ public class DarkSoulsSaver {
 	}
 
 	static public void main (String[] args) throws Exception {
-		if (args.length != 2) {
-			System.out.println("Usage: save-file steam-exe");
-			System.out.println("Example:");
-			System.out.println("java -jar dark-souls-saver.jar"
-				+ " \"C:\\Users\\USERNAME\\Documents\\NBGI\\DARK SOULS REMASTERED\\SOME_NUMBER\\DRAKS0005.sl2\""
-				+ " \"C:\\Games\\Steam\\Steam.exe\"");
+		if (args.length == 0) {
+			System.out.println("Usage: config-file");
+			System.out.println("Config file contents:");
+			System.out.println("save-file");
+			System.out.println("run-command");
+			System.out.println("exe-name");
+			System.out.println("[backup-delay]");
+			System.out.println("Example: java -jar dark-souls-saver.jar ds1.txt");
+			System.out.println("ds1.txt:");
+			System.out.println("C:\\Users\\USERNAME\\Documents\\NBGI\\DARK SOULS REMASTERED\\NUMBER\\DRAKS0005.sl2");
+			System.out.println("C:\\Program Files\\Steam\\steam.exe -applaunch 570940");
+			System.out.println("DarkSoulsRemastered.exe");
+			System.out.println("ds2.txt:");
+			System.out.println("C:\\Users\\USERNAME\\AppData\\Roaming\\DarkSoulsII\\NUMBER\\DS2SOFS0000.sl2");
+			System.out.println("C:\\Program Files\\Steam\\steam.exe -applaunch 335300");
+			System.out.println("DarkSoulsII.exe");
 		}
-		new DarkSoulsSaver(new File(args[0]), new File(args[1]));
+		new DarkSoulsSaver(new File(args[0]));
 	}
 }

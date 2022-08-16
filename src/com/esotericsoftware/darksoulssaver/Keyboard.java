@@ -20,6 +20,7 @@
 
 package com.esotericsoftware.darksoulssaver;
 
+import static com.esotericsoftware.darksoulssaver.Win.Kernel32.*;
 import static com.esotericsoftware.darksoulssaver.Win.User32.*;
 import static java.awt.event.KeyEvent.*;
 
@@ -31,7 +32,12 @@ import java.util.concurrent.CyclicBarrier;
 
 import javax.swing.KeyStroke;
 
+import com.esotericsoftware.darksoulssaver.Win.KBDLLHOOKSTRUCT;
+import com.esotericsoftware.darksoulssaver.Win.LowLevelKeyboardProc;
 import com.esotericsoftware.darksoulssaver.Win.MSG;
+import com.esotericsoftware.darksoulssaver.Win.Parameter;
+
+import com.sun.jna.Pointer;
 
 import java.awt.EventQueue;
 import java.awt.event.InputEvent;
@@ -84,6 +90,23 @@ public class Keyboard {
 		}
 	};
 
+	Pointer hook;
+	final LowLevelKeyboardProc hookProc = new LowLevelKeyboardProc() {
+		public int callback (int code, Parameter wParam, KBDLLHOOKSTRUCT event) {
+			if (code >= 0 && event.flags == 0) { // Key down.
+				for (int i = 0, n = keystrokes.size(); i < n; i++) {
+					KeyStroke keyStroke = keystrokes.get(i);
+					if (keyStroke.getKeyCode() == event.vkCode) {
+						if (DEBUG) System.out.println("Received hotkey: " + names.get(i) + ", " + keystrokes.get(i));
+						fireEventQueue.addLast(i);
+						EventQueue.invokeLater(fireEvent);
+					}
+				}
+			}
+			return CallNextHookEx(hook, code, wParam, event);
+		}
+	};
+
 	public void registerHotkey (String name, KeyStroke keyStroke) {
 		if (keyStroke == null) throw new IllegalArgumentException("keyStroke cannot be null.");
 		if (started) throw new IllegalStateException();
@@ -95,20 +118,19 @@ public class Keyboard {
 		started = true;
 
 		final CyclicBarrier barrier = new CyclicBarrier(2);
+		final Pointer hInstance = GetModuleHandle(null);
 
 		new Thread("Hotkeys") {
 			public void run () {
 				if (DEBUG) System.out.println("Entered keyboard thread.");
 
-				// Register hotkeys.
+				hook = SetWindowsHookEx(WH_KEYBOARD_LL, hookProc, hInstance, 0);
+				if (hook == null) throw new RuntimeException("Unable to setup keyboard hook.");
+
+				// Registered hotkeys.
 				for (int i = 0, n = keystrokes.size(); i < n; i++) {
 					KeyStroke keyStroke = keystrokes.get(i);
-					if (RegisterHotKey(null, i, getModifiers(keyStroke), getVK(keyStroke))) {
-						System.out.println("Registered hotkey: " + names.get(i) + ", " + keyStroke);
-					} else {
-						System.out.println("Unable to register hotkey: " + names.get(i) + ", " + keyStroke + " "
-							+ Integer.toString(getVK(keyStroke), 16));
-					}
+					System.out.println("Registered hotkey: " + names.get(i) + ", " + keyStroke);
 				}
 
 				try {
@@ -118,17 +140,8 @@ public class Keyboard {
 
 				// Listen for hotkeys.
 				MSG msg = new MSG();
-				while (GetMessage(msg, null, WM_HOTKEY, WM_HOTKEY)) {
-					if (msg.message != WM_HOTKEY) continue;
-					int i = msg.wParam.intValue();
-					if (i >= 0 && i < keystrokes.size()) {
-						if (DEBUG) System.out.println("Received hotkey: " + names.get(i) + ", " + keystrokes.get(i));
-						fireEventQueue.addLast(i);
-						EventQueue.invokeLater(fireEvent);
-					}
-				}
-
-				if (DEBUG) System.out.println("Exited keyboard thread.");
+				while (true)
+					GetMessage(msg, null, 0, 0);
 			}
 		}.start();
 
@@ -184,5 +197,19 @@ public class Keyboard {
 		if ((keyStrokeModifiers & InputEvent.ALT_DOWN_MASK) != 0) modifiers |= MOD_ALT;
 		if (windows7Plus) modifiers |= MOD_NOREPEAT;
 		return modifiers;
+	}
+
+	static public void main (String[] args) throws Throwable {
+		Keyboard keyboard = new Keyboard() {
+			protected void hotkey (String key, KeyStroke keyStroke) {
+				System.out.println(key);
+			}
+		};
+		keyboard.registerHotkey("replaceWithLastSave", KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
+		keyboard.start();
+	}
+
+	public Keyboard () {
+		super();
 	}
 }

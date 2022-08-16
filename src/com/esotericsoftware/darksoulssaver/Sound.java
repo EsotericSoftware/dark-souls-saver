@@ -8,10 +8,9 @@ import java.io.InputStream;
 
 public enum Sound {
 	save("/save.wav"), //
-	replaceSave("/replace-save.wav"), //
-	replaceBackup("/replace-backup.wav"), //
-	error("/error.wav"), //
-	;
+	replace("/replace.wav"), //
+	start("/start.wav"), //
+	stop("/stop.wav");
 
 	final byte[] bytes;
 

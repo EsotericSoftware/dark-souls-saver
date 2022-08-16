@@ -33,6 +33,7 @@ import com.sun.jna.Structure;
 import com.sun.jna.WString;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
+import com.sun.jna.win32.StdCallLibrary.StdCallCallback;
 import com.sun.jna.win32.W32APIOptions;
 
 /** @author Nathan Sweet */
@@ -66,6 +67,8 @@ public class Win {
 		static public native int GetTickCount ();
 
 		static public native int GetCurrentProcessId ();
+
+		static public native Pointer GetModuleHandle (Pointer lpModuleName);
 	}
 
 	static public class User32 {
@@ -88,6 +91,7 @@ public class Win {
 
 		static public final int GWL_WNDPROC = -4;
 
+		static public final int WH_KEYBOARD_LL = 13;
 		static public final int WM_HOTKEY = 0x312;
 		static public final int WM_CLIPBOARDUPDATE = 0x31D;
 		static public final int WM_CLOSE = 0x10;
@@ -148,6 +152,10 @@ public class Win {
 		static public native boolean SetCursorPos (int x, int y);
 
 		// Keyboard
+
+		static public native Pointer SetWindowsHookEx (int idHook, Callback lpfn, Pointer hmod, int dwThreadId);
+
+		static public native int CallNextHookEx (Pointer hhk, int nCode, Parameter wParam, KBDLLHOOKSTRUCT lParam);
 
 		static public native boolean RegisterHotKey (Pointer hWnd, int id, int fsModifiers, int vk);
 
@@ -402,5 +410,21 @@ public class Win {
 		}
 
 		static public final int size = new WTS_PROCESS_INFO().size();
+	}
+
+	static public class KBDLLHOOKSTRUCT extends Structure {
+		public int vkCode;
+		public int scanCode;
+		public int flags;
+		public int time;
+		public Pointer dwExtraInfo;
+
+		protected List<String> getFieldOrder () {
+			return Arrays.asList("vkCode", "scanCode", "flags", "time", "dwExtraInfo");
+		}
+	}
+
+	static public interface LowLevelKeyboardProc extends StdCallCallback {
+		public int callback (int nCode, Parameter wParam, KBDLLHOOKSTRUCT lParam);
 	}
 }
