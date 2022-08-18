@@ -59,7 +59,7 @@ public class DarkSoulsSaver {
 
 	File saveDir = new File("save"), backupDir = new File("backup");
 	final ArrayList<File> saveFiles, backupFiles;
-	long lastModified, lastBackupTime, skipBackupTime;
+	long lastModified, skipBackupTime;
 	Audio audio;
 
 	File saveFile;
@@ -187,13 +187,10 @@ public class DarkSoulsSaver {
 
 			// Last backup older than the current save file.
 			File last;
-			if (lastBackupTime == 0)
-				lastBackupTime = backupFiles.get(backupFiles.size() == 1 ? 0 : backupFiles.size() - 2).lastModified();
-			last = last(backupFiles, lastBackupTime);
+			last = last(backupFiles, saveFile.lastModified());
 			print("Replace with previous backup: " + fileNameAndDate(last));
 			audio.play(Sound.replace);
 			copy(last, saveFile);
-			lastBackupTime = last.lastModified();
 			skipBackup(20);
 
 		} else if (key.equals("restart")) {
@@ -224,14 +221,13 @@ public class DarkSoulsSaver {
 			}
 			if (!saveFiles.isEmpty()) {
 				File lastSave = last(saveFiles);
-				if (last == null || last.lastModified() < lastSave.lastModified()) {
+				if (last == null || last.lastModified() <= lastSave.lastModified()) {
 					last = lastSave;
 					type = "save";
 				}
 			}
 
 			print("Replace with last " + type + " and restart: " + fileNameAndDate(last));
-			lastBackupTime = last.lastModified();
 			stopGame();
 			audio.play(Sound.replace);
 			copy(last, saveFile);
@@ -302,7 +298,7 @@ public class DarkSoulsSaver {
 		skipBackupTime = System.currentTimeMillis() + seconds * 1000;
 	}
 
-	ArrayList<File> files (File dir, String prefix) {
+	static ArrayList<File> files (File dir, String prefix) {
 		ArrayList<File> prefixFiles = new ArrayList();
 		dir.mkdirs();
 		File[] files = dir.listFiles();
@@ -317,7 +313,7 @@ public class DarkSoulsSaver {
 		return prefixFiles;
 	}
 
-	int suffix (File file, String prefix) {
+	static int suffix (File file, String prefix) {
 		String name = file.getName();
 		try {
 			return Integer.parseInt(name.substring(prefix.length(), name.length() - 4));
@@ -326,13 +322,13 @@ public class DarkSoulsSaver {
 		}
 	}
 
-	File last (ArrayList<File> files) {
+	static File last (ArrayList<File> files) {
 		return files.get(files.size() - 1);
 	}
 
 	/** @param olderThan Return the newest file older than this, otherwise return the oldest file.
 	 * @return May be null if files is empty. */
-	File last (ArrayList<File> files, long olderThan) {
+	static File last (ArrayList<File> files, long olderThan) {
 		File file = null;
 		for (int i = files.size() - 1; i >= 0; i--) {
 			file = files.get(i);
@@ -341,13 +337,13 @@ public class DarkSoulsSaver {
 		return file;
 	}
 
-	int highestSuffix (ArrayList<File> files, String prefix) {
+	static int highestSuffix (ArrayList<File> files, String prefix) {
 		if (files.isEmpty()) return 1;
 		return suffix(last(files), prefix);
 	}
 
 	/** @return May be null. */
-	File backup (File from, File toDir, ArrayList<File> files, String prefix, int max) {
+	static File backup (File from, File toDir, ArrayList<File> files, String prefix, int max) {
 		if (!from.exists()) {
 			print("File does not exist: " + from.getAbsolutePath());
 			return null;
@@ -366,7 +362,7 @@ public class DarkSoulsSaver {
 		}
 	}
 
-	boolean copy (File from, File to) {
+	static boolean copy (File from, File to) {
 		if (!from.exists()) {
 			print("File does not exist: " + from.getAbsolutePath());
 			return false;
@@ -383,7 +379,7 @@ public class DarkSoulsSaver {
 		}
 	}
 
-	void zzz (int millis) {
+	static void zzz (int millis) {
 		try {
 			Thread.sleep(millis);
 		} catch (InterruptedException ignored) {
@@ -404,7 +400,7 @@ public class DarkSoulsSaver {
 		System.out.println(buffer);
 	}
 
-	String fileNameAndDate (File file) {
+	static String fileNameAndDate (File file) {
 		return file.getName() + " (" + timestamp(file.lastModified()) + ')';
 	}
 
