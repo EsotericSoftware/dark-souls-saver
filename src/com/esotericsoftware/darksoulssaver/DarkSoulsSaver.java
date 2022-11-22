@@ -98,7 +98,7 @@ public class DarkSoulsSaver {
 	}
 
 	void loadConfig (File configFile) throws FileNotFoundException {
-		runCommand = "C:\\Program Files\\Steam\\steam.exe -applaunch 570940";
+		runCommand = "C:\\Apps\\Steam\\steam.exe -applaunch 570940";
 		exeName = "DarkSoulsRemastered.exe";
 		backupDelay = 10;
 
@@ -415,11 +415,11 @@ public class DarkSoulsSaver {
 			System.out.println("Example: java -jar dark-souls-saver.jar ds1.txt");
 			System.out.println("ds1.txt:");
 			System.out.println("C:\\Users\\USERNAME\\Documents\\NBGI\\DARK SOULS REMASTERED\\NUMBER\\DRAKS0005.sl2");
-			System.out.println("C:\\Program Files\\Steam\\steam.exe -applaunch 570940");
+			System.out.println("C:\\Apps\\Steam\\steam.exe -applaunch 570940");
 			System.out.println("DarkSoulsRemastered.exe");
 			System.out.println("ds2.txt:");
 			System.out.println("C:\\Users\\USERNAME\\AppData\\Roaming\\DarkSoulsII\\NUMBER\\DS2SOFS0000.sl2");
-			System.out.println("C:\\Program Files\\Steam\\steam.exe -applaunch 335300");
+			System.out.println("C:\\Apps\\Steam\\steam.exe -applaunch 335300");
 			System.out.println("DarkSoulsII.exe");
 		} else
 			new DarkSoulsSaver(new File(args[0]));

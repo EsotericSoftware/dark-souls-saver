@@ -20,6 +20,8 @@ To run the app, install Java 8+, download the JAR from the [releases page](https
 java -jar dark-souls-saver.jar config.txt
 ```
 
+If you need Java, get it [here](https://adoptium.net/temurin/releases/). Choose `Windows`, `x64`, `JRE`, and the latest version, eg `19`. You don't need to install Java, just unzip and run `java.exe` in the `bin` folder.
+
 The `save` and `backup` folders are created in the folder where it is run.
 
 The `config.txt` file is a text file with the configuration for the Dark Souls game you want to play. It has 3 or 4 lines:
@@ -35,7 +37,7 @@ The `backup-delay` is `10000` (10 seconds) by default and can be omitted. For ex
 
 ```
 C:\Users\USERNAME\Documents\NBGI\DARK SOULS REMASTERED\NUMBER\DRAKS0005.sl2
-C:\Program Files\Steam\steam.exe -applaunch 570940
+C:\Apps\Steam\steam.exe -applaunch 570940
 DarkSoulsRemastered.exe
 ```
 
@@ -43,13 +45,13 @@ For Dark Souls 2:
 
 ```
 C:\Users\USERNAME\AppData\Roaming\DarkSoulsII\NUMBER\DS2SOFS0000.sl2
-C:\Program Files\Steam\steam.exe -applaunch 335300
+C:\Apps\Steam\steam.exe -applaunch 335300
 DarkSoulsII.exe
 ```
 
 The `save-file` is where the game writes your game save file. Replace `USERNAME`, `NUMBER`, and the path to `Steam.exe` as needed for your computer. 
 
-The `run-command` starts the game. Each Steam game has a unique app ID.
+The `run-command` starts the game. Don't use a path that contains spaces. Each Steam game has a unique app ID.
 
 The `exe-name` is the name of the game's executable file and is used to close the game.
 
